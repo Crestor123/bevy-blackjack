@@ -18,7 +18,6 @@ impl fmt::Display for Suit {
             Suit::Heart => write!(f, "Heart"),
             Suit::Diamond => write!(f, "Diamond"),
             Suit::Club => write!(f, "Club"),
-            _ => write!(f, "Error")
         }
     }
 }
@@ -32,7 +31,8 @@ pub struct Card{
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut suit = String::new();
-        write!(&mut suit, "{}", self.suit);
+        write!(&mut suit, "{}", self.suit)
+            .expect("suit string");
         let s = suit.chars().nth(0).unwrap();
 
         match self.value {

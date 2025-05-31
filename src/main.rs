@@ -22,6 +22,8 @@ struct Player;
 #[derive(Component)]
 struct Computer;
 
+#[derive(Component)]
+struct Bust(bool);
 
 
 #[derive(Resource)]
@@ -34,8 +36,8 @@ fn create_players(
     mut cmd: Commands,
     mut next_state: ResMut<NextState<GameState>>
 ) {
-    cmd.spawn((Player, Score(0), card::Deck(Vec::new())));
-    cmd.spawn((Computer, Score(0), card::Deck(Vec::new())));
+    cmd.spawn((Player, Bust(false), Score(0), card::Deck(Vec::new())));
+    cmd.spawn((Computer, Bust(false), Score(0), card::Deck(Vec::new())));
 
     next_state.set(GameState::Input);
 }
@@ -43,10 +45,10 @@ fn create_players(
 //Queries for decks with scores, and cards
 //Adds up each player's total score, and checks for aces
 fn tally_score(
-    mut query: Query<(&card::Deck, &mut Score)>, 
+    mut query: Query<(&card::Deck, &mut Score, &mut Bust)>, 
     qcard: Query<&card::Card>, 
 ) {
-    for (deck, mut score) in query.iter_mut() {
+    for (deck, mut score, mut bust) in query.iter_mut() {
         score.0 = 0;
         let mut aces: i32 = 0;
 
@@ -66,14 +68,33 @@ fn tally_score(
         }
 
         //Ace check
-        if aces == 0 {return}
-
-        for _ in 0..aces {
-            if score.0 <= 10 {
-                score.0 += 11;
+        if aces != 0 {
+            for _ in 0..aces {
+                if score.0 <= 10 {
+                    score.0 += 11;
+                }
+                else { score.0 += 1 }
             }
-            else { score.0 += 1 }
         }
+
+        //Check if the score is over 21; if so, the player busts
+        if score.0 > 21 {
+            println!("Score is over 21");
+            bust.0 = true
+        }
+    }
+}
+
+//Checks if the player has busted
+//Changes state to game over if so
+fn check_score(
+    qplayer: Query<&Bust, With<Player>>,
+    mut next_state: ResMut<NextState<GameState>>
+) {
+    let bust = qplayer.single();
+
+    if bust.0 {
+        next_state.set(GameState::GameOver)
     }
 }
 
@@ -137,6 +158,20 @@ fn get_input(
     }   
 }
 
+//Runs when entering the game over state
+fn game_over(
+    qplayer: Query<(&Score, &Bust), With<Player>>
+) {
+    //print final score
+    //If you busted, you lose
+    let (score, bust) = qplayer.single();
+    println!("\nFinal Score: {}", score.0);
+    if bust.0 {
+        println!("You lose!");
+    }
+    else { println!("You win!") }
+}
+
 //Closes the application
 fn end_game(mut exit: EventWriter<AppExit>) {
     exit.send(AppExit::Success);
@@ -148,7 +183,7 @@ fn main() {
         .init_state::<GameState>()
         .add_systems(Startup, (card::create_dealer_deck, create_players).chain())
         .add_systems(OnEnter(GameState::Input), get_input)
-        .add_systems(OnEnter(GameState::Checking), (tally_score, look_at_cards, print_score).chain())
-        .add_systems(OnEnter(GameState::GameOver), end_game)
+        .add_systems(OnEnter(GameState::Checking), (tally_score, look_at_cards, print_score, check_score).chain())
+        .add_systems(OnEnter(GameState::GameOver), (game_over, end_game).chain())
         .run();
 }
