@@ -28,7 +28,8 @@ struct Computer;
 struct PlayerCount(usize);
 
 
-
+//Creates the players as a bundle including a player tag, a score, and a deck
+//Executed on startup, and directs to the Input state
 fn create_players(
     mut cmd: Commands,
     mut next_state: ResMut<NextState<GameState>>
@@ -39,12 +40,11 @@ fn create_players(
     next_state.set(GameState::Input);
 }
 
-
-
+//Queries for decks with scores, and cards
+//Adds up each player's total score, and checks for aces
 fn tally_score(
     mut query: Query<(&card::Deck, &mut Score)>, 
-    qcard: Query<&card::Card>,
-    
+    qcard: Query<&card::Card>, 
 ) {
     for (deck, mut score) in query.iter_mut() {
         score.0 = 0;
@@ -77,6 +77,8 @@ fn tally_score(
     }
 }
 
+//Queries for the player
+//Prints out each card in the player's hand
 fn look_at_cards(
     qdeck: Query<&card::Deck, With<Player>>, 
     qcard: Query<&card::Card>,
@@ -85,14 +87,19 @@ fn look_at_cards(
             for card in &deck.0 {
             let c = qcard.get(*card);
             match c {
-                Ok(k) => println!("{} {}", k.suit, k.value),
+                //Ok(k) => println!("{} {}", k.suit, k.value),
+                Ok(k) => print!("{} ", k),
                 Err(_) => println!("Error"),
             }
         }
     }
+    println!();
 }
 
-fn print_score(qscore: Query<&Score, With<Player>>, 
+//Prints out the player's score
+//Set the state to Input
+fn print_score(
+    qscore: Query<&Score, With<Player>>, 
     mut next_state: ResMut<NextState<GameState>>
 ) {
     let score = qscore.single();
@@ -101,6 +108,8 @@ fn print_score(qscore: Query<&Score, With<Player>>,
     next_state.set(GameState::Input);
 }
 
+//Queries for the dealer and the player
+//Gets the player input, and changes state based on that input
 fn get_input(
     mut qdealer: Query<&mut card::Deck, With<card::Dealer>>,
     mut qplayer: Query<&mut card::Deck, (With<Player>, Without<card::Dealer>)>,
@@ -128,6 +137,7 @@ fn get_input(
     }   
 }
 
+//Closes the application
 fn end_game(mut exit: EventWriter<AppExit>) {
     exit.send(AppExit::Success);
 }
